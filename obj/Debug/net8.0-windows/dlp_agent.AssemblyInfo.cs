@@ -10,11 +10,10 @@
 using System;
 using System.Reflection;
 
-[assembly: Microsoft.Extensions.Configuration.UserSecrets.UserSecretsIdAttribute("dotnet-dlp_agent-34d777da-9b80-4135-a25d-f46fbc4d68a0")]
 [assembly: System.Reflection.AssemblyCompanyAttribute("dlp_agent")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+09c71e4952f2a11c5085b85144242701198c0470")]
 [assembly: System.Reflection.AssemblyProductAttribute("dlp_agent")]
 [assembly: System.Reflection.AssemblyTitleAttribute("dlp_agent")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

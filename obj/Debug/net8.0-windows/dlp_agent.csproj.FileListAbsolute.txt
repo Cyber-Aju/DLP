@@ -87,6 +87,7 @@ D:\dlp_agent\obj\Debug\net8.0-windows\dlp_agent.GeneratedMSBuildEditorConfig.edi
 D:\dlp_agent\obj\Debug\net8.0-windows\dlp_agent.AssemblyInfoInputs.cache
 D:\dlp_agent\obj\Debug\net8.0-windows\dlp_agent.AssemblyInfo.cs
 D:\dlp_agent\obj\Debug\net8.0-windows\dlp_agent.csproj.CoreCompileInputs.cache
+D:\dlp_agent\obj\Debug\net8.0-windows\dlp_agent.sourcelink.json
 D:\dlp_agent\obj\Debug\net8.0-windows\dlp_agent.csproj.Up2Date
 D:\dlp_agent\obj\Debug\net8.0-windows\dlp_agent.dll
 D:\dlp_agent\obj\Debug\net8.0-windows\refint\dlp_agent.dll

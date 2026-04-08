@@ -7,18 +7,11 @@ public class DatabaseManager
         private readonly string _dbPath;
 
         public DatabaseManager()
-        {
-            // Save the database to the hidden ProgramData folder where Services have 100% full permissions!
-            string safeDbFolder = @"C:\ProgramData\AerologueDLP";
-            
-            if (!Directory.Exists(safeDbFolder))
-            {
-                Directory.CreateDirectory(safeDbFolder);
-            }
-
-            _dbPath = Path.Combine(safeDbFolder, "telemetry.db");
-            InitializeDatabase();
-        }
+    {
+        // Save the DB locally for easy testing
+        _dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "telemetry.db");
+        InitializeDatabase();
+    }
 
     private void InitializeDatabase()
     {

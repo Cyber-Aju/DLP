@@ -219,33 +219,27 @@ public class Worker : BackgroundService
 
     private void LoadLocalConfig()
     {
-        try
+        string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "agent_config.json");
+        if (File.Exists(configPath))
         {
-            // 1. Get the EXACT physical path of the running .exe
-            string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule!.FileName;
-            string exeDir = Path.GetDirectoryName(exePath)!;
-            
-            // 2. Look for the config file right next to the .exe
-            string configPath = Path.Combine(exeDir, "agent_config.json");
+            var configStr = File.ReadAllText(configPath);
+            var configDoc = JsonDocument.Parse(configStr);
 
-            if (File.Exists(configPath))
-            {
-                var configStr = File.ReadAllText(configPath);
-                var configDoc = JsonDocument.Parse(configStr);
-                _hubUrl = configDoc.RootElement.GetProperty("HubUrl").GetString() ?? "";
-                _licenseKey = configDoc.RootElement.GetProperty("LicenseKey").GetString() ?? ""; // Use the new License Key variable!
-            }
+            // Safely look for HubUrl
+            if (configDoc.RootElement.TryGetProperty("HubUrl", out var hubUrlProp))
+                _hubUrl = hubUrlProp.GetString() ?? "";
             else
-            {
-                // DEBUGGING: If the service can't find the file, write an error log so we can see it!
-                File.WriteAllText(Path.Combine(exeDir, "startup_error.txt"), $"CRITICAL: Missing config at {configPath}");
-            }
+                Console.WriteLine("[ERROR] 'HubUrl' is misspelled or missing in config!");
+
+            // Safely look for LicenseKey
+            if (configDoc.RootElement.TryGetProperty("LicenseKey", out var licenseProp))
+                _licenseKey = licenseProp.GetString() ?? "";
+            else
+                Console.WriteLine("[ERROR] 'LicenseKey' is misspelled or missing in config!");
         }
-        catch (Exception ex)
+        else
         {
-            // DEBUGGING: Catch any JSON parsing or permission errors
-            string fallbackDir = @"C:\ProgramData\";
-            File.WriteAllText(Path.Combine(fallbackDir, "dlp_fatal_crash.txt"), $"Error reading config: {ex.Message}");
+            Console.WriteLine("[CRITICAL] Cannot find agent_config.json at " + configPath);
         }
     }
 }

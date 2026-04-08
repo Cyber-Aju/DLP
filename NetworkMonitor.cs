@@ -17,7 +17,7 @@ public class NetworkMonitor
     private bool _blockUploads = false;
 
     // Add browsers here so ETW stops killing them on page loads!
-    private readonly string[] _whitelist = { "System", "Idle", "svchost", "dlp_agent", "explorer", "lsass", "csrss", "services", "chrome", "msedge", "firefox", "brave" };
+    private readonly string[] _whitelist = { "System", "Idle", "svchost", "dlp_agent", "explorer", "lsass", "csrss", "services", "chrome", "msedge", "firefox", "brave", "msedgewebview2" };
     
     public NetworkMonitor(DatabaseManager dbManager)
     {

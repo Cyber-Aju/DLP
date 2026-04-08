@@ -1,12 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk.Worker">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType> 
+    
     <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <UserSecretsId>dotnet-dlp_agent-34d777da-9b80-4135-a25d-f46fbc4d68a0</UserSecretsId>
-
     <IncludeNativeLibrariesForExtract>true</IncludeNativeLibrariesForExtract>
   </PropertyGroup>
 
@@ -19,5 +18,10 @@
     <PackageReference Include="Microsoft.Win32.SystemEvents" Version="10.0.5" />
     <PackageReference Include="System.Management" Version="10.0.5" />
     <PackageReference Include="Titanium.Web.Proxy" Version="3.2.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="agent_config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

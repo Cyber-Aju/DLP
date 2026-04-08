@@ -14,9 +14,11 @@ public class ProxyMonitor
     private readonly DatabaseManager _dbManager;
     private bool _blockUploads = false; 
 
-    // NEW: "Cooldown" timers to stop UI and Database spam!
     private DateTime _lastUploadAlert = DateTime.MinValue;
     private DateTime _lastWebmailAlert = DateTime.MinValue;
+    
+    // NEW: A padlock to prevent multiple threads from spamming popups!
+    private readonly object _alertLock = new object();
 
     public ProxyMonitor(DatabaseManager dbManager)
     {
@@ -33,18 +35,10 @@ public class ProxyMonitor
     {
         try
         {
-            // 1. FORCE PROXY TO BE MACHINE-WIDE (Requires Admin/SYSTEM)
-            // This ensures Chrome uses the proxy, even though the Agent is running as a Service!
-            // using (var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(@"SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings"))
-            // {
-            //     key.SetValue("ProxySettingsPerUser", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            // }
-
             _proxyServer.CertificateManager.CreateRootCertificate();
-            // Tell Titanium to install the cert into the Machine store so it doesn't prompt the user
             _proxyServer.CertificateManager.TrustRootCertificate(true);
 
-            var explicitEndPoint = new ExplicitProxyEndPoint(IPAddress.Any, 8000, true);
+            var explicitEndPoint = new ExplicitProxyEndPoint(IPAddress.Parse("127.0.0.1"), 8000, true);
             _proxyServer.AddEndPoint(explicitEndPoint);
 
             _proxyServer.BeforeRequest += OnRequest;
@@ -57,49 +51,58 @@ public class ProxyMonitor
         }
         catch (Exception ex)
         {
-            // Log the error to DB instead of crashing the app!
             _dbManager.LogEvent("PROXY_CRASH", $"Proxy failed to start: {ex.Message}");
+            Console.WriteLine($"[PROXY ERROR] {ex.Message}");
         }
     }
 
     private async Task OnRequest(object sender, SessionEventArgs e)
     {
         var request = e.HttpClient.Request;
+        string host = request.RequestUri.Host.ToLower();
 
         if (request.Method == "POST" || request.Method == "PUT")
         {
-            string host = request.RequestUri.Host.ToLower();
             long contentLength = request.ContentLength;
 
             // ==========================================
-            // 1. FILE UPLOAD TRACKING (With Cooldown)
+            // 1. FILE UPLOAD TRACKING 
             // ==========================================
-            if (contentLength > 50000) 
+            
+            // IGNORE noisy background telemetry domains from the upload blocker
+            string[] safeDomains = { "play.google.com", "googleapis.com", "youtube.com", "clients.google.com", "clients4.google.com" };
+            if (safeDomains.Any(d => host.Contains(d))) return;
+
+            // Bumped to 25 KB (25000 bytes) to ignore small JSON heartbeat syncs, but catch files!
+            if (contentLength > 25000) 
             {
                 long kb = contentLength / 1024;
                 
                 if (_blockUploads)
                 {
-                    // Always block the chunk to secure the data
                     e.Ok("<html><body><h2>Upload Blocked by Corporate Policy</h2></body></html>");
                     
-                    // COOLDOWN: Only show popup and log to DB once every 10 seconds
-                    if ((DateTime.Now - _lastUploadAlert).TotalSeconds > 10)
+                    lock (_alertLock) 
                     {
-                        _lastUploadAlert = DateTime.Now;
-                        _dbManager.LogEvent("UPLOAD_BLOCKED", $"Blocked {kb} KB upload to {host}");
-                        NotificationManager.ShowWarning($"Web Upload Blocked.", true);
-                        Console.WriteLine($"[PROXY] BLOCKED {kb} KB upload to {host}");
+                        if ((DateTime.Now - _lastUploadAlert).TotalSeconds > 10)
+                        {
+                            _lastUploadAlert = DateTime.Now;
+                            _dbManager.LogEvent("UPLOAD_BLOCKED", $"Blocked {kb} KB upload to {host}");
+                            NotificationManager.ShowWarning($"Web Upload Blocked.", true);
+                            Console.WriteLine($"[PROXY] BLOCKED {kb} KB upload to {host}");
+                        }
                     }
                 }
                 else
                 {
-                    // COOLDOWN: Only log tracking once every 5 seconds per major upload
-                    if ((DateTime.Now - _lastUploadAlert).TotalSeconds > 5)
+                    lock (_alertLock)
                     {
-                        _lastUploadAlert = DateTime.Now;
-                        _dbManager.LogEvent("UPLOAD_TRACKED", $"User uploaded {kb} KB to {host}");
-                        Console.WriteLine($"[PROXY] TRACKED {kb} KB upload to {host}");
+                        if ((DateTime.Now - _lastUploadAlert).TotalSeconds > 5)
+                        {
+                            _lastUploadAlert = DateTime.Now;
+                            _dbManager.LogEvent("UPLOAD_TRACKED", $"User uploaded {kb} KB to {host}");
+                            Console.WriteLine($"[PROXY] TRACKED {kb} KB upload to {host}");
+                        }
                     }
                 }
                 return; 
@@ -108,49 +111,53 @@ public class ProxyMonitor
             // ==========================================
             // 2. WEBMAIL TRACKING (Strict Outbound Filter)
             // ==========================================
-            if (host.Contains("mail.google.com") || host.Contains("outlook.live.com") || host.Contains("mail.yahoo.com"))
+            // ADDED outlook.office.com and outlook.office365.com to catch "New Outlook" traffic!
+            if (host.Contains("mail.google.com") || host.Contains("outlook.live.com") || host.Contains("outlook.office.com") || host.Contains("outlook.office365.com") || host.Contains("mail.yahoo.com"))
             {
                 byte[] bodyBytes = await e.GetRequestBody();
                 string bodyString = System.Text.Encoding.UTF8.GetString(bodyBytes);
                 bodyString = System.Web.HttpUtility.UrlDecode(bodyString);
 
-                // 1. FILTER OUT "READS" AND INBOX SYNCS
-                // If the payload contains Gmail's internal labels for "Opened" (^o), "Unread" (^u), 
-                // or "Inbox" (^i), it means the user is just looking at their inbox. Ignore it!
                 if (bodyString.Contains("[\"^o\"]") || bodyString.Contains("\"^u\"") || bodyString.Contains("\"^i\""))
                 {
                     return; 
                 }
 
-                // 2. Enforce the 5-second cooldown for actual sends/drafts
-                if ((DateTime.Now - _lastWebmailAlert).TotalSeconds > 5)
+                lock (_alertLock) 
                 {
-                    if (bodyString.Length > 200)
+                    if ((DateTime.Now - _lastWebmailAlert).TotalSeconds > 5)
                     {
-                        // 3. Find all email addresses
-                        MatchCollection emailMatches = Regex.Matches(bodyString, @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}");
-                        
-                        // We require at least 2 emails (The sender's email + The target's email) to consider it an outbound message
-                        if (emailMatches.Count > 1) 
+                        if (bodyString.Length > 200)
                         {
-                            HashSet<string> uniqueEmails = new HashSet<string>();
-                            foreach (Match match in emailMatches) uniqueEmails.Add(match.Value.ToLower());
-                            string allFoundEmails = string.Join(", ", uniqueEmails);
+                            MatchCollection emailMatches = Regex.Matches(bodyString, @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}");
                             
-                            // 4. GRAB THE SUBJECT & BODY
-                            // We grab a massive 2000-character chunk so it doesn't cut off the subject!
-                            string snippet = bodyString.Length > 2000 ? bodyString.Substring(0, 2000) : bodyString;
+                            if (emailMatches.Count > 1) 
+                            {
+                                HashSet<string> uniqueEmails = new HashSet<string>();
+                                foreach (Match match in emailMatches) uniqueEmails.Add(match.Value.ToLower());
+                                string allFoundEmails = string.Join(", ", uniqueEmails);
+                                
+                                string snippet = bodyString.Length > 2000 ? bodyString.Substring(0, 2000) : bodyString;
 
-                            // 5. CLEAN THE JUNK
-                            // We strip out all the JSON brackets and "nulls" so the Subject and Body text is easy to read in your database
-                            snippet = snippet.Replace("null", "").Replace("[", "").Replace("]", "").Replace("\"", " ");
-                            // Collapse multiple spaces into one
-                            snippet = Regex.Replace(snippet, @"\s+", " "); 
+                                // --- THE NEW AGGRESSIVE GMAIL CLEANER ---
+                                
+                                // 1. Strip all HTML tags (<div...>, <br>, etc)
+                                snippet = Regex.Replace(snippet, "<.*?>", " ");
+                                // 2. Strip Google's thread and message IDs
+                                snippet = Regex.Replace(snippet, @"(thread-[a-z]:[a-zA-Z0-9-]+)|(msg-[a-z]:[a-zA-Z0-9-]+)", "");
+                                // 3. Strip Google's internal state flags (e.g. ^io_lr30s)
+                                snippet = Regex.Replace(snippet, @"\^[a-zA-Z0-9_]+", "");
+                                // 4. Remove all the leftover JSON junk and commas
+                                snippet = snippet.Replace("null", "").Replace("[", "").Replace("]", "").Replace("\"", " ");
+                                snippet = Regex.Replace(snippet, @"[,|\\/]+", " ");
+                                // 5. Collapse all remaining giant gaps into a single space
+                                snippet = Regex.Replace(snippet, @"\s{2,}", " ").Trim();
 
-                            _lastWebmailAlert = DateTime.Now; 
-                            
-                            _dbManager.LogEvent("WEBMAIL_TRACKED", $"Outbound on {host}. Emails: [{allFoundEmails}]. Payload: {snippet.Trim()}");
-                            Console.WriteLine($"[PROXY] Webmail Outbound Tracked! Targets: {allFoundEmails}");
+                                _lastWebmailAlert = DateTime.Now; 
+                                
+                                _dbManager.LogEvent("WEBMAIL_TRACKED", $"Outbound on {host}. Emails: [{allFoundEmails}]. Payload: {snippet}");
+                                Console.WriteLine($"[PROXY] Webmail Outbound Tracked! Targets: {allFoundEmails}");
+                            }
                         }
                     }
                 }
