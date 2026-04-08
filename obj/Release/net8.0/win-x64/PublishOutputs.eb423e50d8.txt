@@ -1,0 +1,4 @@
+C:\AerologueDLP\appsettings.Development.json
+C:\AerologueDLP\appsettings.json
+C:\AerologueDLP\dlp_agent.pdb
+C:\AerologueDLP\dlp_agent.exe

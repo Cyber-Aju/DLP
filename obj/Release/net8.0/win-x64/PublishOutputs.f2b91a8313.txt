@@ -1,0 +1,8 @@
+D:\dlp_agent\bin\Release\net8.0\win-x64\publish\agent_config.json
+D:\dlp_agent\bin\Release\net8.0\win-x64\publish\appsettings.Development.json
+D:\dlp_agent\bin\Release\net8.0\win-x64\publish\appsettings.json
+D:\dlp_agent\bin\Release\net8.0\win-x64\publish\dlp_agent.pdb
+D:\dlp_agent\bin\Release\net8.0\win-x64\publish\amd64\KernelTraceControl.dll
+D:\dlp_agent\bin\Release\net8.0\win-x64\publish\amd64\msdia140.dll
+D:\dlp_agent\bin\Release\net8.0\win-x64\publish\e_sqlite3.dll
+D:\dlp_agent\bin\Release\net8.0\win-x64\publish\dlp_agent.exe
