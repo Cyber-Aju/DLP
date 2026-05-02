@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using SQLitePCL;
 
 namespace dlp_agent;
 
@@ -8,6 +9,8 @@ public class DatabaseManager
 
         public DatabaseManager()
     {
+        Batteries_V2.Init();
+
         // Save the DB locally for easy testing
         _dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "telemetry.db");
         InitializeDatabase();

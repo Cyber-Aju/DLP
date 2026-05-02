@@ -1,0 +1,563 @@
+═══════════════════════════════════════════════════════════════
+  AEROLOGUE DLP AGENT - DEVELOPER SETUP & CONTRIBUTION GUIDE
+═══════════════════════════════════════════════════════════════
+
+Welcome! This guide explains how to set up your development environment,
+understand the codebase, build locally, and contribute to the project.
+
+═══════════════════════════════════════════════════════════════
+1. PREREQUISITES
+═══════════════════════════════════════════════════════════════
+
+REQUIRED TOOLS:
+─────────────────────────────────────────────────────────────
+✓ Visual Studio Code (recommended) or Visual Studio 2022
+✓ .NET 8.0 SDK (download from https://dot.net)
+✓ Git (for version control)
+✓ Administrator privileges (for testing service features)
+
+VERIFY YOUR SETUP:
+─────────────────────────────────────────────────────────────
+Open PowerShell and run:
+  dotnet --version          # Should show 8.0.xxx or later
+  git --version             # Should show git version
+  
+If missing, install from:
+  .NET: https://dot.net/download
+  Git: https://git-scm.com/download
+
+
+═══════════════════════════════════════════════════════════════
+2. PROJECT STRUCTURE
+═══════════════════════════════════════════════════════════════
+
+project-root/
+├── D:\dlp_agent\                    # Main project folder
+│   ├── dlp_agent.csproj             # Project manifest
+│   ├── Program.cs                   # Service entry point
+│   ├── Worker.cs                    # Main 15s polling loop
+│   ├── agent_config.json            # Local config template
+│   │
+│   ├── MONITORING & ENFORCEMENT:
+│   ├── ProxyMonitor.cs              # SSL proxy + webmail tracking
+│   ├── NetworkMonitor.cs            # ETW kernel network monitor
+│   ├── ClipboardMonitor.cs          # Clipboard copy/paste rules
+│   ├── HardwareMonitor.cs           # USB/CD/Bluetooth blocking
+│   ├── DesktopEmailMonitor.cs       # Outlook COM interop
+│   ├── SessionMonitor.cs            # User session tracking
+│   ├── AppTracker.cs                # Active app window monitoring
+│   ├── TransmissionMonitor.cs       # File transmission detection
+│   │
+│   ├── DATABASE & SYNC:
+│   ├── DatabaseManager.cs           # SQLite telemetry DB
+│   ├── SecurityHelper.cs            # AES-256 encryption
+│   ├── LicenseManager.cs            # License validation
+│   ├── LogManager.cs                # File-based logging
+│   ├── NotificationManager.cs       # On-screen alerts
+│   │
+│   ├── INSTALLATION & SCRIPTS:
+│   ├── build_publish.ps1            # Build & publish script
+│   ├── install-service.ps1          # Service installation
+│   ├── uninstall-service.ps1        # Service removal
+│   ├── DlpAgentInstaller.iss        # Inno Setup config
+│   │
+│   ├── Docs/
+│   │   ├── install_guide.txt        # Installation instructions
+│   │   ├── scopes.txt               # Feature & scope document
+│   │   ├── DEVELOPER_SETUP.txt      # This file
+│   │   └── How to install.md        # Quick reference
+│   │
+│   ├── dlp_hub/                     # PHP backend (separate repo)
+│   │   ├── api.php                  # REST endpoint
+│   │   ├── db_connect.php           # Database config
+│   │   ├── generate_license.php     # License key generation
+│   │   ├── reports.php              # Event reporting
+│   │   └── schema.sql               # Database schema
+│   │
+│   ├── bin/                         # Compiled binaries
+│   └── publish/                     # Self-contained deployable
+
+
+═══════════════════════════════════════════════════════════════
+3. BUILD & RUN LOCALLY
+═══════════════════════════════════════════════════════════════
+
+STEP 1: CLONE THE REPOSITORY
+─────────────────────────────────────────────────────────────
+cd D:\
+git clone <repository-url>
+cd dlp_agent
+
+
+STEP 2: RESTORE DEPENDENCIES
+─────────────────────────────────────────────────────────────
+dotnet restore
+
+
+STEP 3: BUILD IN DEBUG MODE
+─────────────────────────────────────────────────────────────
+dotnet build -c Debug
+# Output: bin/Debug/net8.0-windows/dlp_agent.dll
+
+
+STEP 4: RUN LOCALLY (FOR TESTING)
+─────────────────────────────────────────────────────────────
+# Stop any running service first:
+sc.exe stop DlpAgent
+
+# Run from source:
+dotnet run -c Debug
+
+# Or run the built executable directly:
+& ".\bin\Debug\net8.0-windows\dlp_agent.exe"
+
+
+STEP 5: PUBLISH FOR DEPLOYMENT
+─────────────────────────────────────────────────────────────
+# Create self-contained win-x64 executable:
+.\build_publish.ps1
+
+# Or manually:
+dotnet publish -c Release -r win-x64 --self-contained true
+
+# Output: publish/dlp_agent.exe
+
+
+═══════════════════════════════════════════════════════════════
+4. DEBUGGING & TESTING
+═══════════════════════════════════════════════════════════════
+
+DEBUGGING IN VS CODE:
+─────────────────────────────────────────────────────────────
+1. Install C# extension (powered by OmniSharp)
+2. Open dlp_agent folder in VS Code
+3. Set breakpoints by clicking left margin
+4. Press F5 to start debugging
+5. Attach to running service if needed
+
+
+VIEWING LOGS:
+─────────────────────────────────────────────────────────────
+# Real-time log output:
+Get-Content -Path "C:\ProgramData\AerologueDLP\agent.log" -Wait
+
+# Last 50 lines:
+Get-Content -Path "C:\ProgramData\AerologueDLP\agent.log" -Tail 50
+
+# Database events:
+sqlite3 publish/telemetry.db "SELECT * FROM telemetry_events ORDER BY id DESC LIMIT 10;"
+
+
+TESTING KEY FEATURES:
+─────────────────────────────────────────────────────────────
+
+1. TEST WEBMAIL TRACKING:
+   - Run manually: & ".\publish\dlp_agent.exe"
+   - Open Gmail in Chrome/Edge
+   - Send email with recipients
+   - Check logs for: "WEBMAIL_METADATA_EXTRACTED"
+
+2. TEST UPLOAD DETECTION:
+   - Run manually agent
+   - Upload file (>100KB) to any website
+   - Check logs for: "UPLOAD_TRACKED" or "NETWORK ALERT"
+
+3. TEST CLIPBOARD MONITORING:
+   - Copy sensitive text in Outlook
+   - Check logs for: "CLIPBOARD_EVENT"
+
+4. TEST SERVICE INSTALLATION:
+   - .\install-service.ps1
+   - sc query DlpAgent (should show RUNNING)
+   - Check Event Viewer for service start messages
+
+5. TEST OFFLINE RESILIENCE:
+   - Disconnect from network
+   - Perform monitored action (send email, upload)
+   - Check that local events are stored in telemetry.db
+   - Reconnect and verify sync occurs
+
+
+═══════════════════════════════════════════════════════════════
+5. CODE STRUCTURE & KEY FILES
+═══════════════════════════════════════════════════════════════
+
+ENTRY POINT (Program.cs)
+─────────────────────────────────────────────────────────────
+• Initializes .NET Host
+• Adds Worker as BackgroundService
+• Calls UseWindowsService() for service compatibility
+• Function: Main(string[] args)
+
+
+MAIN LOOP (Worker.cs)
+─────────────────────────────────────────────────────────────
+• ExecuteAsync() - Initializes monitors (runs once at startup)
+• Main Loop (runs every 15 seconds):
+  1. Track active app window
+  2. Monitor clipboard
+  3. Report network bandwidth
+  4. Sync with hub
+  5. Cleanup old database events
+
+Key Methods:
+  • ExecuteAsync() - Service startup
+  • SyncWithHubAsync() - Fetch policy & upload events
+  • LoadLocalConfig() - Read agent_config.json
+
+
+WEBMAIL & UPLOAD DETECTION (ProxyMonitor.cs)
+─────────────────────────────────────────────────────────────
+• Start() - Initialize SSL proxy on port 8000
+• OnRequest() - Intercept HTTP(S) requests
+• TryExtractWebmailMetadataAsync() - Extract email metadata
+  ✓ Filters: Gmail, Outlook, Yahoo, Outlook365
+  ✓ Extracts: Recipients, subject, message size
+  ✓ Filters out: Internal Exchange API calls
+
+Key Patterns:
+  • Outlook internal calls: JsonRequest:#Exchange, @odata.type
+  • Gmail threads: thread-a:xxx, msg-a:xxx
+  • Shadow addresses: @shadow.outlook.com
+
+
+NETWORK MONITORING (NetworkMonitor.cs)
+─────────────────────────────────────────────────────────────
+• Start() - Initialize ETW kernel logger
+• TrackBandwidth() - Per-process upload tracking
+• EnforcePolicy() - Kill process if uploading >100KB
+• ReportAndResetBandwidth() - Clear counters every 15s
+
+Tracked Processes:
+  chrome, msedge, firefox, brave, opera, edge, iexplore, 
+  outlook, thunderbird
+
+
+DATABASE (DatabaseManager.cs)
+─────────────────────────────────────────────────────────────
+• InitializeDatabase() - Create SQLite schema
+• LogEvent() - Insert event record
+• GetUnsyncedEvents() - Fetch unsynced events
+• MarkAsSynced() - Mark events as uploaded
+• PurgeOldData() - Delete events >30 days old
+
+Table: telemetry_events
+  id, company_id, machine_name, timestamp, event_type, details
+
+
+ENCRYPTION (SecurityHelper.cs)
+─────────────────────────────────────────────────────────────
+• EncryptPayload() - AES-256 encrypt with license key
+• DecryptPayload() - AES-256 decrypt
+
+Used by: Worker.SyncWithHubAsync() for secure hub transmission
+
+
+═══════════════════════════════════════════════════════════════
+6. ADDING NEW FEATURES
+═══════════════════════════════════════════════════════════════
+
+EXAMPLE: Add New Upload Detection Source
+─────────────────────────────────────────────────────────────
+
+1. Identify the capture point:
+   - Proxy for webmail: ProxyMonitor.cs
+   - Network for large transfers: NetworkMonitor.cs
+   - File operations: TransmissionMonitor.cs
+
+2. Add detection logic:
+   public async Task<bool> DetectNewSource(/* params */)
+   {
+       // 1. Identify activity
+       if (/* activity detected */)
+       {
+           // 2. Extract metadata
+           string metadata = /* extract details */;
+           
+           // 3. Log event
+           _dbManager.LogEvent("EVENT_TYPE", metadata);
+           
+           // 4. Optionally enforce policy
+           if (_blockPolicy)
+           {
+               // Enforce
+           }
+       }
+   }
+
+3. Add event type to database schema (if new):
+   ALTER TABLE telemetry_events ADD COLUMN event_type VARCHAR(50);
+
+4. Call from Worker.cs main loop:
+   await DetectNewSource();
+
+
+EXAMPLE: Add New Policy Control
+─────────────────────────────────────────────────────────────
+
+1. Add policy field to hub api.php response:
+   "policy": {
+       "my_new_policy": true/false,
+       ...
+   }
+
+2. Parse in Worker.SyncWithHubAsync():
+   bool myNewPolicy = policyNode.GetProperty("my_new_policy").GetBoolean();
+   myNewControl.UpdatePolicy(myNewPolicy);
+
+3. Implement UpdatePolicy() in control class:
+   public void UpdatePolicy(bool enabled)
+   {
+       _myPolicyEnabled = enabled;
+       // React to policy change
+   }
+
+4. Use policy in monitoring:
+   if (_myPolicyEnabled)
+   {
+       // Enforce policy
+   }
+
+
+═══════════════════════════════════════════════════════════════
+7. TESTING CHECKLIST BEFORE COMMIT
+═══════════════════════════════════════════════════════════════
+
+CODE QUALITY:
+─────────────────────────────────────────────────────────────
+□ Builds without errors:      dotnet build -c Release
+□ Compiles without warnings:   Check build output
+□ Code follows C# conventions: Review naming, casing
+□ Null checks on all inputs    No unexpected nulls
+□ Try-catch on critical code   Errors logged, not thrown
+□ LogManager calls for issues  All errors logged to file
+
+FUNCTIONAL TESTING:
+─────────────────────────────────────────────────────────────
+□ Feature works manually:      dotnet run -c Debug
+□ Feature works as service:    .\install-service.ps1
+□ Logs show activity:          Check agent.log
+□ Database records events:     Query telemetry.db
+□ Hub syncs successfully:      Check sync messages
+
+SERVICE RELIABILITY:
+─────────────────────────────────────────────────────────────
+□ Service starts on reboot:    Restart Windows, verify running
+□ Graceful shutdown:           sc stop DlpAgent (no errors)
+□ Recovery after network fail: Unplug network, verify offline queue
+□ No memory leaks:             Monitor Task Manager over time
+
+BACKWARD COMPATIBILITY:
+─────────────────────────────────────────────────────────────
+□ Existing config still works  Old agent_config.json loads
+□ Database migrations handled  Old telemetry.db opens
+□ Policy schema compatible     Old hub versions still work
+
+
+═══════════════════════════════════════════════════════════════
+8. GIT WORKFLOW & CONTRIBUTION PROCESS
+═══════════════════════════════════════════════════════════════
+
+STEP 1: CREATE FEATURE BRANCH
+─────────────────────────────────────────────────────────────
+git checkout -b feature/my-feature-name
+git checkout -b bugfix/my-bug-fix
+
+
+STEP 2: MAKE CHANGES & COMMIT
+─────────────────────────────────────────────────────────────
+# Edit files...
+git add <files>
+git commit -m "Description of changes"
+
+# Good commit message format:
+  [FEATURE] Added webmail tracking for Yahoo Mail
+  [BUGFIX] Fixed Outlook shadow address filtering
+  [PERF] Reduced proxy memory footprint by 15%
+  [DOC] Updated installation guide
+
+
+STEP 3: PUSH & CREATE PULL REQUEST
+─────────────────────────────────────────────────────────────
+git push origin feature/my-feature-name
+# Go to GitHub/GitLab and create Pull Request
+
+
+STEP 4: CODE REVIEW & MERGE
+─────────────────────────────────────────────────────────────
+- Wait for PR review
+- Address feedback (if any)
+- Maintainer merges to main branch
+
+
+COMMIT GUIDELINES:
+─────────────────────────────────────────────────────────────
+✓ One logical change per commit
+✓ Descriptive commit messages (50 char summary)
+✓ Reference issue numbers if applicable: "Fixes #123"
+✓ Keep history clean, rebase before PR
+✗ Don't commit: vendor packages, build artifacts, secrets
+
+
+═══════════════════════════════════════════════════════════════
+9. DEPLOYMENT TESTING
+═══════════════════════════════════════════════════════════════
+
+LOCAL DEPLOYMENT:
+─────────────────────────────────────────────────────────────
+1. Build release binary:
+   .\build_publish.ps1
+
+2. Test installer:
+   - Compile DlpAgentInstaller.iss with Inno Setup
+   - Run generated .exe installer
+   - Verify "Aerologue DLP Agent" shows in Services
+
+3. Test uninstaller:
+   - Control Panel → Programs → Programs and Features
+   - Uninstall "Aerologue DLP Agent"
+   - Verify files removed
+
+
+STAGE DEPLOYMENT:
+─────────────────────────────────────────────────────────────
+1. Deploy to test VM/machine
+2. Verify all monitoring features work:
+   - Webmail tracking
+   - Upload detection
+   - Network enforcement
+   - Policy sync
+3. Check logs for errors
+4. Monitor for 24 hours minimum
+
+
+PRODUCTION DEPLOYMENT:
+─────────────────────────────────────────────────────────────
+1. Follow stage testing first
+2. Create release notes
+3. Tag release in Git: git tag v1.0.1
+4. Coordinate with IT for enterprise rollout
+5. Establish monitoring/support process
+
+
+═══════════════════════════════════════════════════════════════
+10. COMMON DEVELOPMENT TASKS
+═══════════════════════════════════════════════════════════════
+
+ADD NEW HOSTNAMES TO WEBMAIL FILTER:
+─────────────────────────────────────────────────────────────
+File: ProxyMonitor.cs
+Method: TryExtractWebmailMetadataAsync()
+
+Add to host check:
+  if (!host.Contains("mail.google.com") && 
+      !host.Contains("gmail.com") &&
+      !host.Contains("outlook.live.com") &&
+      !host.Contains("outlook.office.com") &&
+      !host.Contains("outlook.office365.com") &&
+      !host.Contains("mail.yahoo.com") &&
+      !host.Contains("new-domain.com"))  // ADD HERE
+
+
+ADD NEW PROCESS TO UPLOAD TRACKING:
+─────────────────────────────────────────────────────────────
+File: NetworkMonitor.cs
+Property: _trackedUploadProcesses
+
+Add to HashSet:
+  private readonly HashSet<string> _trackedUploadProcesses = new()
+  {
+      "chrome",
+      "msedge",
+      "firefox",
+      "new-app"  // ADD HERE
+  };
+
+
+ADD NEW POLICY CONTROL:
+─────────────────────────────────────────────────────────────
+1. Update PHP hub api.php response to include policy
+2. Parse in Worker.cs SyncWithHubAsync():
+   bool newControl = policyNode.GetProperty("new_policy").GetBoolean();
+   myControl.UpdatePolicy(newControl);
+3. Implement control class with UpdatePolicy() method
+4. Call from Worker main loop
+
+
+ADJUST POLLING INTERVAL:
+─────────────────────────────────────────────────────────────
+File: Worker.cs
+Line: await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
+
+Change 15 to desired seconds (careful: lower = more CPU usage)
+
+
+═══════════════════════════════════════════════════════════════
+11. TROUBLESHOOTING DEVELOPMENT ISSUES
+═══════════════════════════════════════════════════════════════
+
+BUILD ERRORS:
+─────────────────────────────────────────────────────────────
+Problem: "Cannot find .NET 8.0"
+Solution: dotnet --list-sdks
+          (If empty, reinstall from https://dot.net)
+
+Problem: "Titanium.Web.Proxy not found"
+Solution: dotnet restore
+          (Fetch all NuGet packages)
+
+
+SERVICE WON'T START:
+─────────────────────────────────────────────────────────────
+Problem: "Service failed with exit code 1"
+Solution: Check logs at C:\ProgramData\AerologueDLP\agent.log
+          Check agent_config.json exists
+          Check network connectivity
+
+Problem: "Access Denied"
+Solution: Run install script as Administrator
+          UAC might need to be disabled for testing
+
+
+PROXY NOT INTERCEPTING:
+─────────────────────────────────────────────────────────────
+Problem: Browser traffic not captured
+Solution: Check proxy started: grep "[PROXY]" agent.log
+          Verify Firefox manual proxy config
+          Check Windows firewall rules
+
+
+DATABASE LOCKED:
+─────────────────────────────────────────────────────────────
+Problem: "Database is locked"
+Solution: Stop service: sc stop DlpAgent
+          Stop any running query
+          Delete database and let it recreate
+
+
+═══════════════════════════════════════════════════════════════
+12. CONTACT & SUPPORT
+═══════════════════════════════════════════════════════════════
+
+FOR QUESTIONS:
+  - Review existing documentation (scopes.txt, install_guide.txt)
+  - Check code comments in key files
+  - Search for similar issues in git history
+
+FOR BUG REPORTS:
+  - Create GitHub/GitLab issue with:
+    • Steps to reproduce
+    • Expected behavior
+    • Actual behavior
+    • Log output & stack trace
+    • Windows version & .NET version
+
+FOR FEATURE REQUESTS:
+  - Discuss in issue first
+  - Align with enterprise scope (scopes.txt)
+  - Submit PR with implementation
+
+
+═══════════════════════════════════════════════════════════════
+HAPPY CODING! WELCOME TO THE TEAM!
+═══════════════════════════════════════════════════════════════

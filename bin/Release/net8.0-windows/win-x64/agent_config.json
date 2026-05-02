@@ -1,4 +1,4 @@
 {
     "HubUrl": "http://localhost/dlp_hub/api.php",
-    "TenantKey": "eyJvcmciOiJTdGFyayBJbmR1c3RyeSIsImV4cGlyeSI6IjIwMjYtMDQtMDVUMjM6NTk6NTlaIn0=.9PISb0k2MJd5iMiJL4vvW5Zg2jdlYDVlXkYhXYvngII="
+    "LicenseKey": "eyJvcmciOiJTdGFyayBJbmR1c3RyeSIsImV4cGlyeSI6IjIwMjYtMDUtMDlUMjM6NTk6NTlaIn0=.I9Z9ekueR9wlRWnwFooiMla5WK1LuxhR6URJZc/9MQI="
 }

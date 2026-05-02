@@ -1,0 +1,223 @@
+═══════════════════════════════════════════════════════════════
+  AEROLOGUE DLP AGENT - INSTALLATION GUIDE
+═══════════════════════════════════════════════════════════════
+
+📋 PREREQUISITES
+─────────────────────────────────────────────────────────────
+✓ Windows 10 / Windows 11 / Windows Server 2019+
+✓ Administrator privileges (required for service installation and proxy setup)
+✓ .NET 8.0 runtime (included in self-contained package)
+✓ Network access to the DLP Hub (PHP backend)
+
+═══════════════════════════════════════════════════════════════
+🚀 INSTALLATION METHODS
+═══════════════════════════════════════════════════════════════
+
+METHOD 1: AUTOMATED INSTALLER (RECOMMENDED)
+─────────────────────────────────────────────────────────────
+1. Compile DlpAgentInstaller.iss with Inno Setup:
+   - Open Inno Setup IDE
+   - Load DlpAgentInstaller.iss
+   - Select Build → Compile
+   
+2. Run the generated installer (.exe):
+   - Double-click the installer
+   - Accept UAC prompt
+   - Complete installation wizard
+   
+3. The installer will:
+   ✓ Install DlpAgent Windows service
+   ✓ Enable auto-start on system boot
+   ✓ Create optional desktop shortcut
+   ✓ Generate root certificate for proxy
+   ✓ Start the service automatically
+
+4. Verify installation:
+   - Open Services (services.msc)
+   - Find "Aerologue DLP Agent"
+   - Status should show "Running"
+
+
+METHOD 2: POWERSHELL MANUAL INSTALLATION
+─────────────────────────────────────────────────────────────
+1. Build and publish the project:
+   cd D:\dlp_agent
+   dotnet publish -c Release -r win-x64 --self-contained true
+
+2. Run the installation script as Administrator:
+   PS C:\> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Force
+   PS C:\> D:\dlp_agent\install-service.ps1
+
+3. The script will:
+   ✓ Validate admin privileges
+   ✓ Locate the published executable
+   ✓ Register Windows service with auto-start
+   ✓ Configure failure recovery
+   ✓ Start the service
+
+4. Verify installation:
+   PS C:\> Get-Service -Name DlpAgent
+
+
+METHOD 3: MANUAL COMMAND-LINE INSTALLATION
+─────────────────────────────────────────────────────────────
+1. Build and publish (same as Method 2, step 1)
+
+2. Create the service manually:
+   sc.exe create DlpAgent binPath= "D:\dlp_agent\publish\dlp_agent.exe" start= auto DisplayName= "Aerologue DLP Agent"
+   sc.exe failure DlpAgent reset= 86400 actions= restart/600/restart/600/restart/600
+   sc.exe start DlpAgent
+
+3. Verify:
+   sc.exe query DlpAgent
+
+
+═══════════════════════════════════════════════════════════════
+⚙️  CONFIGURATION
+═══════════════════════════════════════════════════════════════
+
+REQUIRED CONFIG FILE: agent_config.json
+─────────────────────────────────────────────────────────────
+Location: D:\dlp_agent\publish\agent_config.json
+
+Example content:
+{
+    "HubUrl": "http://your-company.com/dlp_hub/api.php",
+    "LicenseKey": "your-license-key-here"
+}
+
+- HubUrl: Central PHP endpoint for policy sync and event upload
+- LicenseKey: Enterprise license key (validate during startup)
+
+APPLIANCE BOOTSTRAP: C:\ProgramData\AerologueDLP\
+─────────────────────────────────────────────────────────────
+The service creates this directory for:
+✓ agent.log - Runtime debug and event logs
+✓ rootCert.pfx - Generated SSL certificate for proxy
+✓ telemetry.db - Local SQLite event database
+
+
+═══════════════════════════════════════════════════════════════
+🔍 VERIFICATION & TESTING
+═══════════════════════════════════════════════════════════════
+
+1. CHECK SERVICE STATUS:
+   Get-Service -Name DlpAgent
+
+   Expected output: Status = "Running"
+
+2. CHECK LOGS:
+   Get-Content -Path "C:\ProgramData\AerologueDLP\agent.log" -Tail 50
+
+   Expected: License validation, proxy startup, sync messages
+
+3. TEST MANUAL EXECUTION (Debugging):
+   sc.exe stop DlpAgent
+   & "D:\dlp_agent\publish\dlp_agent.exe"
+   
+   Watch console output for:
+   ✓ "[LICENSE] VALID. Expires on..."
+   ✓ "[PROXY] SSL Proxy Started..."
+   ✓ "[NETWORK] SUCCESS! ETW Kernel Logger is ACTIVE..."
+   ✓ "SYNC: Found X unsynced events"
+
+4. TEST MONITORING:
+   - Open Gmail/Outlook and send an email with recipients
+     → Check logs for: "WEBMAIL_METADATA_EXTRACTED"
+   
+   - Upload a file (>100KB) from Chrome/Edge to a website
+     → Check logs for: "NETWORK ALERT" or "PROXY TRACKED"
+   
+   - Copy sensitive data to clipboard
+     → Check logs for: "CLIPBOARD_EVENT"
+
+
+═══════════════════════════════════════════════════════════════
+🛠️  TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════
+
+SERVICE WON'T START
+─────────────────────────────────────────────────────────────
+Problem: Service starts but stops immediately
+Solution:
+1. Check logs: Get-Content "C:\ProgramData\AerologueDLP\agent.log"
+2. Verify agent_config.json exists and is valid JSON
+3. Verify license key: HubUrl should be reachable
+4. Check permissions: Service needs admin rights for proxy
+
+LICENSE INVALID
+─────────────────────────────────────────────────────────────
+Problem: "AGENT DISABLED: License is missing, invalid, or expired"
+Solution:
+1. Verify agent_config.json contains both HubUrl and LicenseKey
+2. Check license expiration date
+3. Verify license key format is correct
+4. Check network connectivity to hub
+
+WEBMAIL NOT TRACKING
+─────────────────────────────────────────────────────────────
+Problem: Emails are not being captured
+Solution:
+1. Check if browser is using system proxy:
+   - Chrome/Edge use Windows system proxy settings
+   - Firefox may need manual proxy configuration
+2. Verify proxy is running: Check logs for "[PROXY]" entries
+3. Manual test works but service doesn't:
+   - Service runs as LocalSystem, may have proxy limitation
+   - Run manually via: & "D:\dlp_agent\publish\dlp_agent.exe"
+
+UPLOADS NOT DETECTED
+─────────────────────────────────────────────────────────────
+Problem: File uploads not showing in logs
+Solution:
+1. Upload must be >100KB to trigger logging
+2. Must be from tracked process: Chrome, Edge, Firefox, Outlook, etc.
+3. Test manually: & "D:\dlp_agent\publish\dlp_agent.exe"
+4. Check ETW status in logs: "ETW Kernel Logger is ACTIVE"
+
+
+═══════════════════════════════════════════════════════════════
+🔧 UNINSTALLATION
+═══════════════════════════════════════════════════════════════
+
+METHOD 1: POWERSHELL SCRIPT
+─────────────────────────────────────────────────────────────
+PS C:\> D:\dlp_agent\uninstall-service.ps1
+
+METHOD 2: MANUAL UNINSTALL
+─────────────────────────────────────────────────────────────
+sc.exe stop DlpAgent
+sc.exe delete DlpAgent
+
+CLEANUP (OPTIONAL)
+─────────────────────────────────────────────────────────────
+Remove entire installation:
+Remove-Item -Recurse -Force "D:\dlp_agent"
+Remove-Item -Recurse -Force "C:\ProgramData\AerologueDLP"
+
+
+═══════════════════════════════════════════════════════════════
+📊 LOG FILE LOCATIONS
+═══════════════════════════════════════════════════════════════
+
+MAIN SERVICE LOG:
+  C:\ProgramData\AerologueDLP\agent.log
+
+LOCAL TELEMETRY DATABASE:
+  C:\ProgramData\AerologueDLP\telemetry.db (if running as service)
+  D:\dlp_agent\publish\telemetry.db (if running manually)
+
+ROOT CERTIFICATE:
+  C:\ProgramData\AerologueDLP\rootCert.pfx
+
+
+═══════════════════════════════════════════════════════════════
+📞 SUPPORT & DOCUMENTATION
+═══════════════════════════════════════════════════════════════
+
+For more information, see:
+- scopes.txt - Enterprise feature scope
+- DEVELOPER_SETUP.txt - Developer contribution guide
+- ProxyMonitor.cs - Proxy interception logic
+- NetworkMonitor.cs - Network upload detection logic
+- Worker.cs - Main service loop and sync orchestration

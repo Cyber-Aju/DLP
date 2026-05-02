@@ -2,6 +2,7 @@ using Microsoft.Diagnostics.Tracing.Parsers;
 using Microsoft.Diagnostics.Tracing.Session;
 using System.Diagnostics;
 using System.IO;
+using System.Collections.Generic;
 using System.Runtime.Versioning; // 1. ADD THIS
 
 namespace dlp_agent;
@@ -16,8 +17,18 @@ public class NetworkMonitor
     
     private bool _blockUploads = false;
 
-    // Add browsers here so ETW stops killing them on page loads!
-    private readonly string[] _whitelist = { "System", "Idle", "svchost", "dlp_agent", "explorer", "lsass", "csrss", "services", "chrome", "msedge", "firefox", "brave", "msedgewebview2" };
+    private readonly HashSet<string> _trackedUploadProcesses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "chrome",
+        "msedge",
+        "firefox",
+        "brave",
+        "opera",
+        "edge",
+        "iexplore",
+        "outlook",
+        "thunderbird"
+    };
     
     public NetworkMonitor(DatabaseManager dbManager)
     {
@@ -56,6 +67,7 @@ public class NetworkMonitor
                 _session.Source.Kernel.UdpIpSend += (data) => TrackBandwidth(data.ProcessID, data.size);
 
                 Console.WriteLine("[NETWORK] SUCCESS! ETW Kernel Logger is ACTIVE and listening!");
+                LogManager.LogInfo("ETW Kernel Logger started successfully and listening for network events");
                 System.Console.Beep(1000, 300);
 
                 _session.Source.Process(); 
@@ -74,6 +86,7 @@ public class NetworkMonitor
                 catch { /* Ignore */ }
                 
                 _dbManager.LogEvent("ETW_ERROR", $"Kernel tracking failed: {ex.Message}");
+                LogManager.LogError("Kernel network tracking failed", ex);
             }
         });
     }
@@ -104,14 +117,14 @@ public class NetworkMonitor
             Process proc = Process.GetProcessById(processId);
             string processName = proc.ProcessName;
 
-            foreach (var safeApp in _whitelist)
+            if (!_trackedUploadProcesses.Contains(processName))
             {
-                if (processName.Equals(safeApp, StringComparison.OrdinalIgnoreCase)) return;
+                Console.WriteLine($"[NETWORK IGNORE] {processName}.exe is not considered a user-facing upload process.");
+                return;
             }
 
             long kilobytes = totalBytes / 1024;
             
-            // LOUD CONSOLE: Tell us when an app uploads heavy data!
             Console.WriteLine($"[NETWORK ALERT] {processName}.exe uploaded {kilobytes} KB.");
 
             if (_blockUploads)
@@ -138,6 +151,20 @@ public class NetworkMonitor
     {
         lock (_bytesSentPerProcess)
         {
+            if (_bytesSentPerProcess.Count > 0)
+            {
+                LogManager.LogInfo($"NETWORK STATUS: Tracking {_bytesSentPerProcess.Count} processes for uploads");
+                foreach (var kvp in _bytesSentPerProcess)
+                {
+                    long kb = kvp.Value / 1024;
+                    LogManager.LogInfo($"NETWORK PROC: PID {kvp.Key} has sent {kb} KB");
+                }
+            }
+            else
+            {
+                LogManager.LogInfo("NETWORK STATUS: No upload activity detected in this cycle");
+            }
+            
             _bytesSentPerProcess.Clear(); 
             _killedProcesses.Clear(); 
         }

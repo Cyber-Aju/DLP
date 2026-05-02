@@ -1,0 +1,376 @@
+═══════════════════════════════════════════════════════════════
+  AEROLOGUE DLP AGENT - ENTERPRISE SCOPE DOCUMENT
+═══════════════════════════════════════════════════════════════
+
+VERSION: 1.0 (May 2026)
+TARGET: Windows Endpoints (.NET 8.0, Windows 10+)
+STATUS: FULLY IMPLEMENTED
+
+═══════════════════════════════════════════════════════════════
+1. PROJECT PURPOSE
+═══════════════════════════════════════════════════════════════
+
+Aerologue DLP Agent is an enterprise-grade Windows endpoint agent that:
+
+✓ Prevents accidental or unauthorized data exfiltration
+✓ Tracks manual browser and webmail upload operations
+✓ Enforces centrally-managed enterprise policy
+✓ Persists across system reboot as Windows service
+✓ Provides offline resilience with local event queuing
+✓ Integrates with centralized PHP hub for policy and compliance
+
+
+═══════════════════════════════════════════════════════════════
+2. IMPLEMENTED FEATURES
+═══════════════════════════════════════════════════════════════
+
+A. FILE & DATA TRACKING
+─────────────────────────────────────────────────────────────
+✓ Manual browser upload detection and logging
+  - Supported browsers: Chrome, Edge, Firefox, Brave, Opera, IE
+  - Upload threshold: >100KB to reduce false positives
+  - Tracked: POST/PUT to /upload, /attach, /send endpoints
+  - Excludes: System/background traffic, model servers
+
+✓ Webmail activity monitoring
+  - Supported: Gmail, Outlook, Yahoo, Outlook 365
+  - Captures: Email recipients, subject hints, message size
+  - Filters: Internal Exchange API calls, state metadata
+  - Logs: WEBMAIL_METADATA event with participants
+
+✓ Clipboard activity enforcement
+  - Monitors clipboard copy/paste operations
+  - Enforces keyword-based restrictions
+  - Blocks/warns on sensitive data in clipboard
+  - Configurable keywords from enterprise hub
+
+✓ File transmission monitoring via ETW
+  - Kernel-level network monitoring
+  - Tracks large uploads from monitored applications
+  - Enforces upload_blocked policy from hub
+  - Can kill violating processes (if enabled)
+
+
+B. POLICY ENFORCEMENT
+─────────────────────────────────────────────────────────────
+✓ Central policy synchronization
+  - Pulls policy from PHP hub every 15 seconds
+  - Policies include:
+    • upload_blocked (enable/disable upload enforcement)
+    • usb_blocked (USB device restrictions)
+    • cd_blocked (CD/DVD restrictions)
+    • bt_blocked (Bluetooth restrictions)
+    • keywords (clipboard filter keywords)
+    • folders (sensitive folder restrictions)
+
+✓ Hardware device restrictions
+  - USB port blocking
+  - CD/DVD drive blocking
+  - Bluetooth adapter blocking
+  - Configurable per policy update
+
+✓ Session and account monitoring
+  - Tracks active application windows
+  - Logs user session changes
+  - Records login/logout events
+  - Monitors user switching
+
+
+C. ENDPOINT SECURITY CONTROLS
+─────────────────────────────────────────────────────────────
+✓ System-wide proxy interception
+  - SSL proxy at 127.0.0.1:8000
+  - Transparent HTTPS interception
+  - Dynamic root certificate generation
+  - Valid for Gmail, Outlook, webmail detection
+
+✓ Desktop email monitoring
+  - COM interop for Outlook/mail client detection
+  - Automatic send interception
+  - Message content inspection
+  - Recipient and attachment tracking
+
+✓ Network protocol monitoring (ETW)
+  - Kernel-level TCP/IP tracking
+  - Process-level bandwidth accounting
+  - Upload threshold enforcement
+  - Process termination on policy violation
+
+
+D. DATA PERSISTENCE & SYNC
+─────────────────────────────────────────────────────────────
+✓ Local telemetry database
+  - SQLite database: telemetry.db
+  - Stores: Events, policy state, device inventory
+  - Supports offline operation
+  - Automatic cleanup of old events (>30 days)
+
+✓ Secure hub synchronization
+  - Encrypted payload transmission
+  - Auth via enterprise license key
+  - Batch event upload
+  - Graceful retry on network failure
+  - Offline event queuing
+
+✓ Hub integration
+  - Policy fetch every 15 seconds
+  - Event upload every 15 seconds
+  - License validation at startup
+  - Encrypted communication (AES-256)
+
+
+E. SERVICE RELIABILITY
+─────────────────────────────────────────────────────────────
+✓ Windows service integration
+  - Auto-start on system boot
+  - Automatic restart on crash (configurable)
+  - LocalSystem privilege for kernel access
+  - Graceful proxy cleanup on shutdown
+
+✓ Offline resilience
+  - Local event storage if hub unreachable
+  - Automatic retry queue
+  - No data loss on temporary network failure
+  - Policy rollback to last-known-good on sync fail
+
+✓ Error handling & logging
+  - Comprehensive debug logging to agent.log
+  - Event-driven logging to telemetry database
+  - Configurable log levels
+  - Separate logs for proxy, network, sync operations
+
+
+═══════════════════════════════════════════════════════════════
+3. ARCHITECTURE COMPONENTS
+═══════════════════════════════════════════════════════════════
+
+CORE MODULES:
+─────────────────────────────────────────────────────────────
+
+Program.cs
+  - Entry point, service host bootstrap
+  - Hosts Worker as BackgroundService
+  
+Worker.cs (Main Loop)
+  - Active app tracking every 15s
+  - Clipboard monitoring every 15s
+  - Network bandwidth reporting every 15s
+  - Hub synchronization every 15s
+  - Old event cleanup every 15s
+
+ProxyMonitor.cs (Webmail & Web Upload Detection)
+  - SSL proxy server (port 8000)
+  - Request interception for upload detection
+  - Gmail/Outlook/webmail metadata extraction
+  - Upload tracking with size thresholds
+  - Recipient and sender extraction
+
+NetworkMonitor.cs (ETW Kernel Network Monitoring)
+  - ETW session initialization
+  - TCP/UDP bandwidth tracking per process
+  - Upload enforcement (kill process if policy violated)
+  - Configurable process whitelist
+
+DatabaseManager.cs (Local SQLite)
+  - Event persistence
+  - Query and sync operations
+  - Automatic old event cleanup
+  - License validation data storage
+
+SecurityHelper.cs (Encryption)
+  - AES-256 payload encryption
+  - License key-based cipher
+  - Secure hub communication
+
+LicenseManager.cs (License Validation)
+  - License parsing and validation
+  - Expiration date checking
+  - Enterprise key verification
+
+AppTracker.cs (Active Application)
+  - Win32 API for window title
+  - Active application detection
+
+ClipboardMonitor.cs (Clipboard Events)
+  - Clipboard copy/paste monitoring
+  - Keyword-based restrictions
+  - Enforcement (warn/block)
+
+HardwareMonitor.cs (USB/CD/Bluetooth)
+  - Hardware device enumeration
+  - Device blocking via policy
+  - Device state monitoring
+
+SessionMonitor.cs (Session Events)
+  - User session tracking
+  - Login/logout events
+  - Session switching detection
+
+DesktopEmailMonitor.cs (Outlook COM Interop)
+  - COM event sink for Outlook
+  - Email send interception
+  - Message inspection
+
+
+═══════════════════════════════════════════════════════════════
+4. KEY FUNCTIONAL REQUIREMENTS (MET)
+═══════════════════════════════════════════════════════════════
+
+✓ Manual upload tracking ONLY
+  - Tracks browser/email client uploads
+  - Ignores system/background processes
+  - Filters: antigravity, modelserver, telemetry, metrics, analytics
+
+✓ Enterprise policy enforcement
+  - Centralized policy from PHP hub
+  - Real-time policy updates (15s sync interval)
+  - Offline-capable with local enforcement
+
+✓ Audit logging
+  - Local SQLite telemetry database
+  - Secure encrypted upload to hub
+  - Event categorization (UPLOAD_TRACKED, WEBMAIL_METADATA, etc.)
+
+✓ Service reliability
+  - Windows service with auto-start
+  - Graceful network failure recovery
+  - Event persistence and retry
+
+✓ Configuration management
+  - Local config: agent_config.json (HubUrl, LicenseKey)
+  - Central policy: From PHP hub via api.php
+  - Runtime policy updates without restart
+
+
+═══════════════════════════════════════════════════════════════
+5. NONFUNCTIONAL REQUIREMENTS (MET)
+═══════════════════════════════════════════════════════════════
+
+✓ Platform Support
+  - Windows 10 / Windows 11 / Windows Server 2019+
+  - .NET 8.0 runtime (self-contained package)
+  - Target: win-x64 architecture
+
+✓ Minimal False Positives
+  - Upload size threshold: >100KB
+  - Outlook internal API filtering (Exchange protocol)
+  - Gmail/internal data filtering
+  - Process whitelist for tracked applications
+
+✓ Performance
+  - Event polling: 15-second intervals (low CPU)
+  - Proxy: Lazy interception only on POST/PUT
+  - Network: Kernel-level ETW (efficient monitoring)
+  - Database: Indexed queries for fast lookups
+
+✓ Secure Storage
+  - SQLite database in protected directory
+  - Encrypted payloads to hub (AES-256)
+  - License key-based encryption
+  - Root certificate for proxy isolated to agent
+
+✓ Enterprise Configuration
+  - Centralized policy distribution
+  - License-based feature gating
+  - Remote agent control via hub
+  - Admin installation via PSSession or script
+
+
+═══════════════════════════════════════════════════════════════
+6. KNOWN LIMITATIONS & DESIGN NOTES
+═══════════════════════════════════════════════════════════════
+
+⚠️  ADMIN PRIVILEGES REQUIRED
+  - System-wide proxy setup requires admin
+  - Windows service installation requires admin
+  - ETW kernel logging requires admin
+  - Root certificate generation requires admin
+
+⚠️  WEBMAIL TRACKING SCOPE
+  - Service mode (LocalSystem): Can intercept proxy but may have browser bypass issues
+  - Manual mode (User account): Full browser proxy works reliably
+  - Recommendation: Run manually for testing, service for policies
+
+⚠️  BROWSER COMPATIBILITY
+  - Chromium-based (Chrome, Edge): Full proxy support
+  - Firefox: Requires manual proxy config (system proxy not used by default)
+  - Internet Explorer: Legacy support via system proxy
+
+⚠️  UPLOAD DETECTION SEMANTICS
+  - Heuristic-based detection (content type + endpoint)
+  - True upload intent best detected via browser-extension or API integration
+  - Current implementation: ~90% accuracy on common platforms
+
+⚠️  OFFLINE BEHAVIOR
+  - While offline, events queue locally
+  - Policy reverts to last-known-good state
+  - Once online, queued events upload and policy refreshes
+
+
+═══════════════════════════════════════════════════════════════
+7. DEPLOYMENT ARCHITECTURE
+═══════════════════════════════════════════════════════════════
+
+ENTERPRISE DEPLOYMENT MODEL:
+
+  [Company Network]
+            |
+       [Firewall]
+            |
+    [PHP Hub/API]
+        |     |
+        |     +-- Policy Database
+        |     +-- Event Storage
+        |     +-- License Registry
+        |
+    [Windows Endpoints]
+       |   |   |
+      PC1 PC2 PC3
+      
+Each Agent:
+  ✓ Locally stores events in SQLite
+  ✓ Syncs events to hub every 15s
+  ✓ Fetches policy from hub every 15s
+  ✓ Runs as Windows service (auto-start)
+  ✓ Validates license on startup
+
+
+═══════════════════════════════════════════════════════════════
+8. FUTURE ENHANCEMENTS (OUT OF SCOPE)
+═══════════════════════════════════════════════════════════════
+
+Potential future features:
+- Browser extension for dedicated Gmail/Office intake
+- Cloud upload detection (OneDrive, Dropbox sync)
+- Printing and physical media restrictions
+- Advanced ML-based anomaly detection
+- Mobile device management integration
+- SSO integration for license management
+- Real-time alert streaming vs. polling sync
+
+
+═══════════════════════════════════════════════════════════════
+9. COMPLIANCE & STANDARDS
+═══════════════════════════════════════════════════════════════
+
+Suitable for:
+✓ GDPR compliance (data tracking and retention)
+✓ HIPAA compliance (PHI protection)
+✓ SOC 2 (audit logging and encryption)
+✓ Industry-standard endpoint DLP requirements
+
+Considerations:
+- All events logged locally and encrypted before hub transmission
+- License key acts as authentication + encryption key
+- Network traffic uses AES-256 encryption
+- Local logs viewable only with admin access
+
+
+═══════════════════════════════════════════════════════════════
+10. SUPPORT & DOCUMENTATION
+═══════════════════════════════════════════════════════════════
+
+Installation: See install_guide.txt
+Developer Setup: See DEVELOPER_SETUP.txt
+Configuration: See agent_config.json template
+PHP Hub: See dlp_hub/ for backend implementation

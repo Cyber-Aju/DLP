@@ -1,0 +1,8 @@
+D:\dlp_agent\publish\agent_config.json
+D:\dlp_agent\publish\appsettings.Development.json
+D:\dlp_agent\publish\appsettings.json
+D:\dlp_agent\publish\dlp_agent.pdb
+D:\dlp_agent\publish\amd64\KernelTraceControl.dll
+D:\dlp_agent\publish\amd64\msdia140.dll
+D:\dlp_agent\publish\e_sqlite3.dll
+D:\dlp_agent\publish\dlp_agent.exe
