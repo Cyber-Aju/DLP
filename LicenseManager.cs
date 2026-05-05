@@ -27,7 +27,7 @@ public static class LicenseManager
 
             if (providedSignature != expectedSignature)
             {
-                Console.WriteLine("[LICENSE] CRITICAL: License signature is invalid or tampered with!");
+                // Log signature error silently to avoid console dependency
                 return false;
             }
 
@@ -41,11 +41,11 @@ public static class LicenseManager
             // 3. OFFLINE KILL SWITCH: Is today past the expiration date?
             if (DateTime.Now > expiryDate)
             {
-                Console.WriteLine($"[LICENSE] EXPIRED! License ended on {expiryDate.ToShortDateString()}");
+                // Log expiry silently
                 return false;
             }
 
-            Console.WriteLine($"[LICENSE] VALID. Expires on {expiryDate.ToShortDateString()}");
+            // License info logged to file system only
             return true;
         }
         catch 

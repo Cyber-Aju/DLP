@@ -39,7 +39,7 @@ public class NetworkMonitor
     {
         _blockUploads = blockUploads;
         // LOUD CONSOLE: Tell us when the API syncs!
-        Console.WriteLine($"[NETWORK] Hub Policy Synced: Upload Blocking is now {(_blockUploads ? "ON" : "OFF")}");
+        LogManager.LogInfo($"[NETWORK] Hub Policy Synced: Upload Blocking is now {(_blockUploads ? "ON" : "OFF")}");
     }
 
     public void Start()
@@ -48,13 +48,13 @@ public class NetworkMonitor
         {
             try
             {
-                Console.WriteLine("[NETWORK] Attempting to start ETW Kernel Logger...");
+                LogManager.LogInfo("[NETWORK] Attempting to start ETW Kernel Logger...");
 
                 string sessionName = KernelTraceEventParser.KernelSessionName;
 
                 if (TraceEventSession.GetActiveSessionNames().Contains(sessionName))
                 {
-                    Console.WriteLine("[NETWORK] Found a ghost session. Stopping it...");
+                    LogManager.LogInfo("[NETWORK] Found a ghost session. Stopping it...");
                     var ghostSession = new TraceEventSession(sessionName);
                     ghostSession.Dispose(); 
                     Task.Delay(1000).Wait();
@@ -121,20 +121,20 @@ public class NetworkMonitor
 
             if (!_trackedUploadProcesses.Contains(processName))
             {
-                Console.WriteLine($"[NETWORK IGNORE] {processName}.exe is not considered a user-facing upload process.");
+                LogManager.LogInfo($"[NETWORK IGNORE] {processName}.exe is not considered a user-facing upload process.");
                 return;
             }
 
             long kilobytes = totalBytes / 1024;
             
-            Console.WriteLine($"[NETWORK ALERT] {processName}.exe uploaded {kilobytes} KB.");
+            LogManager.LogInfo($"[NETWORK ALERT] {processName}.exe uploaded {kilobytes} KB.");
 
             if (_blockUploads)
             {
                 _killedProcesses.Add(processId); 
                 proc.Kill(); 
                 
-                Console.WriteLine($"[NETWORK ENFORCEMENT] KILLED {processName}.exe!");
+                LogManager.LogInfo($"[NETWORK ENFORCEMENT] KILLED {processName}.exe!");
                 NotificationManager.ShowWarning($"Network Upload Blocked. {processName}.exe was terminated for leaking data.", true);
                 _dbManager.LogEvent("UPLOAD_BLOCKED", $"{processName}.exe killed for exceeding limits ({kilobytes} KB)");
             }
@@ -145,7 +145,7 @@ public class NetworkMonitor
         }
         catch (Exception ex) 
         { 
-            Console.WriteLine($"[NETWORK PROCESS ERROR] PID {processId}: {ex.Message}");
+            LogManager.LogInfo($"[NETWORK PROCESS ERROR] PID {processId}: {ex.Message}");
         }
     }
 

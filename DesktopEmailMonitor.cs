@@ -55,7 +55,7 @@ public class DesktopEmailMonitor
             Delegate d = Delegate.CreateDelegate(handlerType, this, nameof(OnItemSend));
             itemSendEvent.AddEventHandler(_outlookApp, d);
             
-            Console.WriteLine("[DESKTOP EMAIL] Successfully hooked into Desktop Outlook.");
+            LogManager.LogInfo("[DESKTOP EMAIL] Successfully hooked into Desktop Outlook.");
         }
     }
 
@@ -78,7 +78,7 @@ public class DesktopEmailMonitor
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[DESKTOP EMAIL ERROR] {ex.Message}");
+            LogManager.LogError("[DESKTOP EMAIL ERROR]", new Exception(ex.Message));
         }
     }
 }

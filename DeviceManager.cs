@@ -21,7 +21,7 @@ public class DeviceManager
         catch (UnauthorizedAccessException)
         {
             // Agent is not running as Admin/SYSTEM!
-            Console.WriteLine("CRITICAL: Missing Admin privileges to lock USBs.");
+            LogManager.LogError("CRITICAL", new Exception("Missing Admin privileges to lock USBs."));
         }
     }
 }

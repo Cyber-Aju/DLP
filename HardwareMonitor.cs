@@ -105,7 +105,7 @@ public class HardwareMonitor
     private void CheckHardware(string deviceType, bool isBlocked)
     {
         // 1. THE BEEP TEST
-        System.Console.Beep(800, 500); 
+        LogManager.LogInfo("[HARDWARE] Device blocked - notification triggered."); 
 
         if (isBlocked)
         {

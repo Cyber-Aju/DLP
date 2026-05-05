@@ -17,6 +17,7 @@ $shortcutPath = Join-Path $startupPath 'AerologueDLPAgent.lnk'
 $WshShell = New-Object -comObject WScript.Shell
 $Shortcut = $WshShell.CreateShortcut($shortcutPath)
 $Shortcut.TargetPath = $exePath
+$Shortcut.WorkingDirectory = Split-Path -Parent $exePath
 $Shortcut.Save()
 
 Write-Host "Autostart shortcut created at $shortcutPath."

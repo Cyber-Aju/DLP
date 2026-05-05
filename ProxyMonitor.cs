@@ -89,12 +89,12 @@ public class ProxyMonitor
                 {
                     _proxyServer.SetAsSystemHttpProxy(explicitEndPoint);
                     _proxyServer.SetAsSystemHttpsProxy(explicitEndPoint);
-                    Console.WriteLine("[PROXY] SSL Proxy Started (User-level proxy only - LocalSystem limitation)");
+                    LogManager.LogInfo("[PROXY] SSL Proxy Started (User-level proxy only - LocalSystem limitation)");
                     LogManager.LogInfo("Proxy started with user-level proxy settings only");
                 }
                 catch (Exception userProxyEx)
                 {
-                    Console.WriteLine($"[PROXY] SSL Proxy Started (No system proxy - running in limited mode): {userProxyEx.Message}");
+                    LogManager.LogInfo($"[PROXY] SSL Proxy Started (No system proxy - running in limited mode): {userProxyEx.Message}");
                     LogManager.LogError("Proxy started without proxy settings", userProxyEx);
                 }
             }
@@ -103,7 +103,7 @@ public class ProxyMonitor
         {
             _dbManager.LogEvent("PROXY_CRASH", $"Proxy failed to start: {ex.Message}");
             LogManager.LogError("Proxy failed to start", ex);
-            Console.WriteLine($"[PROXY ERROR] {ex.Message}");
+            LogManager.LogError("[PROXY ERROR]", new Exception(ex.Message));
         }
     }
 
@@ -153,7 +153,7 @@ public class ProxyMonitor
                     _lastUploadAlert = DateTime.Now;
                     _dbManager.LogEvent("UPLOAD_BLOCKED", $"Blocked {kb} KB manual upload to {host}");
                     NotificationManager.ShowWarning($"Web Upload Blocked.", true);
-                    Console.WriteLine($"[PROXY] BLOCKED {kb} KB manual upload to {host}");
+                    LogManager.LogInfo($"[PROXY] BLOCKED {kb} KB manual upload to {host}");
                 }
             }
         }
@@ -165,7 +165,7 @@ public class ProxyMonitor
                 {
                     _lastUploadAlert = DateTime.Now;
                     _dbManager.LogEvent("UPLOAD_TRACKED", $"Manual upload tracked: {kb} KB to {host}");
-                    Console.WriteLine($"[PROXY] TRACKED manual upload {kb} KB to {host}");
+                    LogManager.LogInfo($"[PROXY] TRACKED manual upload {kb} KB to {host}");
                 }
             }
         }
@@ -391,12 +391,12 @@ public class ProxyMonitor
         {
             _proxyServer.RestoreOriginalProxySettings();
             _proxyServer.Stop();
-            Console.WriteLine("[PROXY] SSL Proxy Stopped.");
+            LogManager.LogInfo("[PROXY] SSL Proxy Stopped.");
         }
         catch (Exception ex)
         {
             LogManager.LogInfo($"ProxyMonitor.Stop() encountered: {ex.Message}");
-            Console.WriteLine($"[PROXY] Stop encountered error (this may be OK if proxy never started): {ex.Message}");
+            LogManager.LogInfo($"[PROXY] Stop encountered error (this may be OK if proxy never started): {ex.Message}");
         }
     }
 }

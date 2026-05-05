@@ -277,7 +277,7 @@ public class Worker : BackgroundService
             else
             {
                 LogManager.LogError("'HubUrl' is misspelled or missing in config!");
-                Console.WriteLine("[ERROR] 'HubUrl' is misspelled or missing in config!");
+                LogManager.LogError("CONFIG ERROR", new Exception("'HubUrl' is misspelled or missing in config!"));
             }
 
             // Safely look for LicenseKey
@@ -289,13 +289,13 @@ public class Worker : BackgroundService
             else
             {
                 LogManager.LogError("'LicenseKey' is misspelled or missing in config!");
-                Console.WriteLine("[ERROR] 'LicenseKey' is misspelled or missing in config!");
+                LogManager.LogError("CONFIG ERROR", new Exception("'LicenseKey' is misspelled or missing in config!"));
             }
         }
         else
         {
             LogManager.LogError($"Cannot find agent_config.json at {configPath}. Files in directory: {string.Join(", ", Directory.GetFiles(baseDir))}");
-            Console.WriteLine("[CRITICAL] Cannot find agent_config.json at " + configPath);
+            LogManager.LogError("CONFIG ERROR", new Exception("Cannot find agent_config.json at " + configPath));
         }
     }
 }
