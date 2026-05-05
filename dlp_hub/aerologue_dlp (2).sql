@@ -18,7 +18,7 @@ CREATE TABLE `companies` (
 
 INSERT INTO `companies` (`id`, `name`, `tenant_key`) VALUES
 (1,	'Admin Corp',	'CORP_ABC_123'),
-(2,	'Stark Industry',	'eyJvcmciOiJTdGFyayBJbmR1c3RyeSIsImV4cGlyeSI6IjIwMjYtMDQtMTBUMjM6NTk6NTlaIn0=.45AkiPjkiMR1sqR2cNt949k5+avr8GGoZE1c5zJdXNQ=');
+(2,	'Stark Industry',	'eyJvcmciOiJTdGFyayBJbmR1c3RyeSIsImV4cGlyeSI6IjIwMjYtMDUtMDlUMjM6NTk6NTlaIn0=.I9Z9ekueR9wlRWnwFooiMla5WK1LuxhR6URJZc/9MQI=');
 
 DROP TABLE IF EXISTS `device_policies`;
 CREATE TABLE `device_policies` (
@@ -56,4 +56,4 @@ CREATE TABLE `telemetry_events` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
--- 2026-04-08 18:01:00
+-- 2026-05-05 17:50:29
