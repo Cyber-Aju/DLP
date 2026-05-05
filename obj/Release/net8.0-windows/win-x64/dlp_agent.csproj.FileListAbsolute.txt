@@ -287,3 +287,9 @@ D:\dlp_agent\bin\Release\net8.0-windows\win-x64\publish_temp\publish_temp\publis
 D:\dlp_agent\bin\Release\net8.0-windows\win-x64\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish\agent_config.json
 D:\dlp_agent\bin\Release\net8.0-windows\win-x64\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish\appsettings.Development.json
 D:\dlp_agent\bin\Release\net8.0-windows\win-x64\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish\appsettings.json
+D:\dlp_agent\bin\Release\net8.0-windows\win-x64\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\agent_config.json
+D:\dlp_agent\bin\Release\net8.0-windows\win-x64\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\appsettings.Development.json
+D:\dlp_agent\bin\Release\net8.0-windows\win-x64\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\appsettings.json
+D:\dlp_agent\bin\Release\net8.0-windows\win-x64\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish\agent_config.json
+D:\dlp_agent\bin\Release\net8.0-windows\win-x64\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish\appsettings.Development.json
+D:\dlp_agent\bin\Release\net8.0-windows\win-x64\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish_temp\publish\appsettings.json

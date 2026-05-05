@@ -20,10 +20,7 @@ Name: "{commonprograms}\DLP Agent"; Filename: "{app}\dlp_agent.exe"
 Name: "{autodesktop}\DLP Agent"; Filename: "{app}\dlp_agent.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "sc.exe"; Parameters: "create DlpAgent binPath= ""{app}\\dlp_agent.exe"" start= auto DisplayName= ""Aerologue DLP Agent"""; Flags: runhidden waituntilterminated
-Filename: "sc.exe"; Parameters: "failure DlpAgent reset= 86400 actions= restart/600/restart/600/restart/600"; Flags: runhidden waituntilterminated
-Filename: "sc.exe"; Parameters: "start DlpAgent"; Flags: runhidden waituntilterminated
+Filename: "powershell.exe"; Parameters: "-Command ""$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('{commonstartup}\AerologueDLPAgent.lnk'); $Shortcut.TargetPath = '{app}\dlp_agent.exe'; $Shortcut.Save()"""; Flags: runhidden
 
 [UninstallRun]
-Filename: "sc.exe"; Parameters: "stop DlpAgent"; Flags: runhidden waituntilterminated
-Filename: "sc.exe"; Parameters: "delete DlpAgent"; Flags: runhidden waituntilterminated
+Filename: "cmd.exe"; Parameters: "/c del ""{commonstartup}\AerologueDLPAgent.lnk"""; Flags: runhidden

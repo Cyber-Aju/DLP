@@ -26,16 +26,15 @@ METHOD 1: AUTOMATED INSTALLER (RECOMMENDED)
    - Complete installation wizard
    
 3. The installer will:
-   ✓ Install DlpAgent Windows service
-   ✓ Enable auto-start on system boot
+   ✓ Install DlpAgent executable to Program Files
+   ✓ Create autostart shortcut in All Users Startup folder
    ✓ Create optional desktop shortcut
-   ✓ Generate root certificate for proxy
-   ✓ Start the service automatically
+   ✓ Generate root certificate for proxy (on first run)
 
 4. Verify installation:
-   - Open Services (services.msc)
-   - Find "Aerologue DLP Agent"
-   - Status should show "Running"
+   - Check Startup folder: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp
+   - Should contain "AerologueDLPAgent.lnk"
+   - Reboot or log off/on to test autostart
 
 
 METHOD 2: POWERSHELL MANUAL INSTALLATION
@@ -51,25 +50,26 @@ METHOD 2: POWERSHELL MANUAL INSTALLATION
 3. The script will:
    ✓ Validate admin privileges
    ✓ Locate the published executable
-   ✓ Register Windows service with auto-start
-   ✓ Configure failure recovery
-   ✓ Start the service
+   ✓ Create autostart shortcut in All Users Startup folder
+   ✓ Configure the shortcut for silent background execution
 
 4. Verify installation:
-   PS C:\> Get-Service -Name DlpAgent
+   - Check: dir "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
+   - Should show AerologueDLPAgent.lnk
 
 
 METHOD 3: MANUAL COMMAND-LINE INSTALLATION
 ─────────────────────────────────────────────────────────────
 1. Build and publish (same as Method 2, step 1)
 
-2. Create the service manually:
-   sc.exe create DlpAgent binPath= "D:\dlp_agent\publish\dlp_agent.exe" start= auto DisplayName= "Aerologue DLP Agent"
-   sc.exe failure DlpAgent reset= 86400 actions= restart/600/restart/600/restart/600
-   sc.exe start DlpAgent
+2. Create autostart shortcut manually:
+   $WshShell = New-Object -comObject WScript.Shell
+   $Shortcut = $WshShell.CreateShortcut("C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\AerologueDLPAgent.lnk")
+   $Shortcut.TargetPath = "D:\dlp_agent\publish\dlp_agent.exe"
+   $Shortcut.Save()
 
 3. Verify:
-   sc.exe query DlpAgent
+   dir "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
 
 
 ═══════════════════════════════════════════════════════════════
@@ -96,15 +96,28 @@ The service creates this directory for:
 ✓ rootCert.pfx - Generated SSL certificate for proxy
 ✓ telemetry.db - Local SQLite event database
 
+HUB SERVER SETUP
+─────────────────────────────────────────────────────────────
+The DLP Hub (PHP backend) must be running for sync to work:
+
+1. Ensure PHP is installed (XAMPP or standalone)
+2. Start the hub server:
+   cd D:\dlp_agent
+   php -S localhost:80 -t .
+   
+3. The hub will be available at: http://localhost/dlp_hub/api.php
+4. Keep this terminal running in the background while testing
+
+Note: Once published as a hidden Windows executable, the agent will start without opening a visible console window.
 
 ═══════════════════════════════════════════════════════════════
 🔍 VERIFICATION & TESTING
 ═══════════════════════════════════════════════════════════════
 
-1. CHECK SERVICE STATUS:
-   Get-Service -Name DlpAgent
+1. CHECK AUTOSTART SETUP:
+   dir "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
 
-   Expected output: Status = "Running"
+   Expected output: AerologueDLPAgent.lnk
 
 2. CHECK LOGS:
    Get-Content -Path "C:\ProgramData\AerologueDLP\agent.log" -Tail 50
@@ -112,10 +125,11 @@ The service creates this directory for:
    Expected: License validation, proxy startup, sync messages
 
 3. TEST MANUAL EXECUTION (Debugging):
-   sc.exe stop DlpAgent
    & "D:\dlp_agent\publish\dlp_agent.exe"
    
-   Watch console output for:
+   If the app is built as a hidden Windows executable, it will not open a visible terminal window. Use the log file for confirmation.
+
+   Check logs for:
    ✓ "[LICENSE] VALID. Expires on..."
    ✓ "[PROXY] SSL Proxy Started..."
    ✓ "[NETWORK] SUCCESS! ETW Kernel Logger is ACTIVE..."
@@ -136,14 +150,14 @@ The service creates this directory for:
 🛠️  TROUBLESHOOTING
 ═══════════════════════════════════════════════════════════════
 
-SERVICE WON'T START
+AUTOSTART NOT WORKING
 ─────────────────────────────────────────────────────────────
-Problem: Service starts but stops immediately
+Problem: Agent doesn't start on boot/logon
 Solution:
-1. Check logs: Get-Content "C:\ProgramData\AerologueDLP\agent.log"
-2. Verify agent_config.json exists and is valid JSON
-3. Verify license key: HubUrl should be reachable
-4. Check permissions: Service needs admin rights for proxy
+1. Check shortcut exists: dir "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
+2. Verify shortcut target: Right-click shortcut → Properties → Target should be correct path
+3. Test shortcut manually: Double-click it, should run agent
+4. Check user permissions: Shortcut runs as current user, ensure user has access to executable and config
 
 LICENSE INVALID
 ─────────────────────────────────────────────────────────────
@@ -166,6 +180,15 @@ Solution:
    - Service runs as LocalSystem, may have proxy limitation
    - Run manually via: & "D:\dlp_agent\publish\dlp_agent.exe"
 
+ETW ACCESS DENIED
+─────────────────────────────────────────────────────────────
+Problem: "Access is denied" when starting ETW Kernel Logger
+Solution:
+1. ETW kernel tracing requires administrator privileges.
+2. Run the agent elevated or install it as a Windows service.
+3. If using the Startup shortcut, the app may still run but ETW upload monitoring will be disabled.
+4. Confirm by checking `C:\ProgramData\AerologueDLP\net_debug.txt` and `C:\ProgramData\AerologueDLP\agent.log`.
+
 UPLOADS NOT DETECTED
 ─────────────────────────────────────────────────────────────
 Problem: File uploads not showing in logs
@@ -186,13 +209,12 @@ PS C:\> D:\dlp_agent\uninstall-service.ps1
 
 METHOD 2: MANUAL UNINSTALL
 ─────────────────────────────────────────────────────────────
-sc.exe stop DlpAgent
-sc.exe delete DlpAgent
+Remove-Item -Recurse -Force "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\AerologueDLPAgent.lnk"
 
 CLEANUP (OPTIONAL)
 ─────────────────────────────────────────────────────────────
 Remove entire installation:
-Remove-Item -Recurse -Force "D:\dlp_agent"
+Remove-Item -Recurse -Force "C:\Program Files\DLP Agent"
 Remove-Item -Recurse -Force "C:\ProgramData\AerologueDLP"
 
 

@@ -15,6 +15,7 @@
           "Microsoft.Extensions.Hosting.WindowsServices": "8.0.1",
           "Microsoft.Win32.Registry": "5.0.0",
           "Microsoft.Win32.SystemEvents": "10.0.5",
+          "SQLitePCLRaw.bundle_e_sqlite3": "2.1.6",
           "System.Management": "10.0.5",
           "Titanium.Web.Proxy": "3.2.0",
           "runtimepack.Microsoft.NETCore.App.Runtime.win-x64": "8.0.25"

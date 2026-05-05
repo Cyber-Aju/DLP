@@ -66,27 +66,29 @@ public class NetworkMonitor
                 _session.Source.Kernel.TcpIpSend += (data) => TrackBandwidth(data.ProcessID, data.size);
                 _session.Source.Kernel.UdpIpSend += (data) => TrackBandwidth(data.ProcessID, data.size);
 
-                Console.WriteLine("[NETWORK] SUCCESS! ETW Kernel Logger is ACTIVE and listening!");
                 LogManager.LogInfo("ETW Kernel Logger started successfully and listening for network events");
-                System.Console.Beep(1000, 300);
-
                 _session.Source.Process(); 
             }
             catch (Exception ex)
             {
-                // LOUD CONSOLE: Print exact error to PowerShell
-                Console.WriteLine($"[NETWORK CRITICAL ERROR] {ex.Message}");
-                
+                string? accessMessage = ex.Message.Contains("Access is denied") || ex is UnauthorizedAccessException
+                    ? "ETW kernel tracing requires administrator privileges. Run the agent elevated or install it as a service to enable kernel upload monitoring."
+                    : null;
+
+                if (!string.IsNullOrEmpty(accessMessage))
+                {
+                    LogManager.LogWarning(accessMessage);
+                }
+
+                LogManager.LogError("Kernel network tracking failed", ex);
+                _dbManager.LogEvent("ETW_ERROR", $"Kernel tracking failed: {ex.Message}");
+
                 try
                 {
-                    // Create the folder so the text file doesn't fail!
                     Directory.CreateDirectory(@"C:\ProgramData\AerologueDLP");
                     File.AppendAllText(@"C:\ProgramData\AerologueDLP\net_debug.txt", $"[STARTUP ERROR] {ex.Message}\n");
                 }
                 catch { /* Ignore */ }
-                
-                _dbManager.LogEvent("ETW_ERROR", $"Kernel tracking failed: {ex.Message}");
-                LogManager.LogError("Kernel network tracking failed", ex);
             }
         });
     }
