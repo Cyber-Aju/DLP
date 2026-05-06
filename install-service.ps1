@@ -13,11 +13,21 @@ if (-not (Test-Path $exePath)) {
 
 $startupPath = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
 $shortcutPath = Join-Path $startupPath 'AerologueDLPAgent.lnk'
+$userStartupPath = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup'
+$userShortcutPath = Join-Path $userStartupPath 'AerologueDLPAgent.lnk'
+$vbsPath = Join-Path $startupPath 'AerologueDLPAgent.vbs'
 
-$WshShell = New-Object -comObject WScript.Shell
-$Shortcut = $WshShell.CreateShortcut($shortcutPath)
-$Shortcut.TargetPath = $exePath
-$Shortcut.WorkingDirectory = Split-Path -Parent $exePath
-$Shortcut.Save()
+if (Test-Path $userShortcutPath) {
+    Remove-Item $userShortcutPath -Force
+    Write-Host "Removed duplicate user startup shortcut at $userShortcutPath."
+}
 
-Write-Host "Autostart shortcut created at $shortcutPath."
+# Create VBScript to launch hidden
+$vbsContent = @"
+Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run """$exePath""", 0, False
+"@
+
+Set-Content -Path $vbsPath -Value $vbsContent -Encoding ASCII
+
+Write-Host "Hidden autostart VBScript created at $vbsPath."

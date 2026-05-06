@@ -37,25 +37,32 @@ METHOD 1: AUTOMATED INSTALLER (RECOMMENDED)
    - Reboot or log off/on to test autostart
 
 
-METHOD 2: POWERSHELL MANUAL INSTALLATION
+METHOD 2: POWERSHELL MANUAL INSTALLATION (RECOMMENDED FOR ENTERPRISE)
 ─────────────────────────────────────────────────────────────
-1. Build and publish the project:
+1. Build and publish the project as Administrator:
    cd D:\dlp_agent
    dotnet publish -c Release -r win-x64 --self-contained true
 
-2. Run the installation script as Administrator:
-   PS C:\> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Force
-   PS C:\> D:\dlp_agent\install-service.ps1
+2. Run the autostart setup scripts as Administrator:
+   cd D:\dlp_agent
+   .\uninstall-service.ps1
+   .\install-service.ps1
 
-3. The script will:
-   ✓ Validate admin privileges
-   ✓ Locate the published executable
-   ✓ Create autostart shortcut in All Users Startup folder
-   ✓ Configure the shortcut for silent background execution
+3. The scripts will:
+   ✓ Remove any old startup shortcuts or services
+   ✓ Create hidden autostart VBScript in All Users Startup folder
+   ✓ Configure for completely silent background execution (no console window)
 
-4. Verify installation:
-   - Check: dir "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
-   - Should show AerologueDLPAgent.lnk
+4. IMPORTANT: Restart the computer or log off/on:
+   Restart-Computer
+   
+   OR manually log off and back on for autostart to activate.
+
+5. Verify installation:
+   - Check Startup folder: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp
+   - Should show AerologueDLPAgent.vbs
+   - After restart, verify process is running: Get-Process -Name dlp_agent
+   - Verify logs: Get-Content "C:\ProgramData\AerologueDLP\agent.log" -Tail 20
 
 
 METHOD 3: MANUAL COMMAND-LINE INSTALLATION
@@ -117,30 +124,33 @@ Note: Once published as a hidden Windows executable, the agent will start withou
 1. CHECK AUTOSTART SETUP:
    dir "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
 
-   Expected output: AerologueDLPAgent.lnk
+   Expected output: AerologueDLPAgent.vbs (hidden launcher script)
 
-2. CHECK LOGS:
+2. CHECK IF RUNNING AFTER RESTART:
+   Get-Process -Name dlp_agent -ErrorAction SilentlyContinue
+   
+   If process appears, autostart is working.
+
+3. CHECK LOGS:
    Get-Content -Path "C:\ProgramData\AerologueDLP\agent.log" -Tail 50
 
    Expected: License validation, proxy startup, sync messages
 
-3. TEST MANUAL EXECUTION (Debugging):
+4. TEST MANUAL EXECUTION (Debugging):
    & "D:\dlp_agent\publish\dlp_agent.exe"
    
-   If the app is built as a hidden Windows executable, it will not open a visible terminal window. Use the log file for confirmation.
-
    Check logs for:
    ✓ "[LICENSE] VALID. Expires on..."
    ✓ "[PROXY] SSL Proxy Started..."
-   ✓ "[NETWORK] SUCCESS! ETW Kernel Logger is ACTIVE..."
-   ✓ "SYNC: Found X unsynced events"
+   ✓ "[NETWORK] Hub Policy Synced: Upload Blocking is now ON"
+   ✓ "SYNC: Found X unsynced events. Sending to hub..."
 
-4. TEST MONITORING:
+5. TEST MONITORING:
    - Open Gmail/Outlook and send an email with recipients
      → Check logs for: "WEBMAIL_METADATA_EXTRACTED"
    
    - Upload a file (>100KB) from Chrome/Edge to a website
-     → Check logs for: "NETWORK ALERT" or "PROXY TRACKED"
+     → Check logs for: "[PROXY] BLOCKED" or "[PROXY] TRACKED"
    
    - Copy sensitive data to clipboard
      → Check logs for: "CLIPBOARD_EVENT"
@@ -154,10 +164,23 @@ AUTOSTART NOT WORKING
 ─────────────────────────────────────────────────────────────
 Problem: Agent doesn't start on boot/logon
 Solution:
-1. Check shortcut exists: dir "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
-2. Verify shortcut target: Right-click shortcut → Properties → Target should be correct path
-3. Test shortcut manually: Double-click it, should run agent
-4. Check user permissions: Shortcut runs as current user, ensure user has access to executable and config
+1. Check VBScript exists: dir "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\AerologueDLPAgent.vbs"
+2. Verify you restarted or logged off/on after running install-service.ps1
+3. Check process is running: Get-Process -Name dlp_agent
+4. If not running, reinstall with admin privileges:
+   cd D:\dlp_agent
+   .\uninstall-service.ps1
+   .\install-service.ps1
+   Restart-Computer
+
+AGENT APPEARS TO NOT BE RUNNING BUT NO ERRORS
+─────────────────────────────────────────────────────────────
+Problem: No visible terminal, no process shown, but no errors
+Solution:
+1. The agent is launched hidden - this is normal behavior
+2. Check logs: Get-Content "C:\ProgramData\AerologueDLP\agent.log" -Tail 20
+3. If logs show recent activity, the agent is running correctly
+4. If logs are old, the agent failed to start - check for errors in logs
 
 LICENSE INVALID
 ─────────────────────────────────────────────────────────────
@@ -203,18 +226,29 @@ Solution:
 🔧 UNINSTALLATION
 ═══════════════════════════════════════════════════════════════
 
-METHOD 1: POWERSHELL SCRIPT
+METHOD 1: POWERSHELL SCRIPT (RECOMMENDED)
 ─────────────────────────────────────────────────────────────
-PS C:\> D:\dlp_agent\uninstall-service.ps1
+Run as Administrator:
+PS C:\> cd D:\dlp_agent
+PS C:\> .\uninstall-service.ps1
+
+This will:
+✓ Remove the hidden autostart VBScript
+✓ Remove any old startup shortcuts
+✓ Stop and remove any existing Windows services
 
 METHOD 2: MANUAL UNINSTALL
 ─────────────────────────────────────────────────────────────
-Remove-Item -Recurse -Force "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\AerologueDLPAgent.lnk"
+Remove-Item "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\AerologueDLPAgent.vbs" -ErrorAction SilentlyContinue
+Remove-Item "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\AerologueDLPAgent.lnk" -ErrorAction SilentlyContinue
 
 CLEANUP (OPTIONAL)
 ─────────────────────────────────────────────────────────────
+Stop the running agent:
+Stop-Process -Name dlp_agent -ErrorAction SilentlyContinue
+
 Remove entire installation:
-Remove-Item -Recurse -Force "C:\Program Files\DLP Agent"
+Remove-Item -Recurse -Force "C:\Program Files\DLP Agent" -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force "C:\ProgramData\AerologueDLP"
 
 

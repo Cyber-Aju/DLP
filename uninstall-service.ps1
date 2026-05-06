@@ -20,9 +20,23 @@ if ($service) {
     Write-Host "Service '$serviceName' does not exist."
 }
 
+$userStartupPath = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup'
+$userShortcutPath = Join-Path $userStartupPath 'AerologueDLPAgent.lnk'
+$vbsPath = Join-Path $startupPath 'AerologueDLPAgent.vbs'
+
 if (Test-Path $shortcutPath) {
     Remove-Item $shortcutPath -Force
     Write-Host "Autostart shortcut removed from $shortcutPath."
 } else {
     Write-Host "Autostart shortcut does not exist."
+}
+
+if (Test-Path $userShortcutPath) {
+    Remove-Item $userShortcutPath -Force
+    Write-Host "Duplicate user startup shortcut removed from $userShortcutPath."
+}
+
+if (Test-Path $vbsPath) {
+    Remove-Item $vbsPath -Force
+    Write-Host "Hidden autostart VBScript removed from $vbsPath."
 }
